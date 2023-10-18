@@ -5,6 +5,7 @@ using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace SmileBotFirstConnection;
 
@@ -12,11 +13,15 @@ public class BotEngine
 {
     private readonly TelegramBotClient _botClient;
     private static IMetApi? _metApi;
+    private static IReplyMarkup _keyboard;
 
     public BotEngine(TelegramBotClient botClient, IMetApi metApi)
     {
         _botClient = botClient;
         _metApi = metApi;
+
+        KeyboardButton btn = new KeyboardButton("!random");
+        _keyboard = new ReplyKeyboardMarkup(btn);
     }
 
     public async Task ListenForMessagesAsync()
@@ -25,14 +30,14 @@ public class BotEngine
 
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = Array.Empty<UpdateType>() // receive all update types
+            AllowedUpdates = Array.Empty<UpdateType>()
         };
         _botClient.StartReceiving(
             updateHandler: HandleUpdateAsync,
             pollingErrorHandler: HandlePollingErrorAsync,
             receiverOptions: receiverOptions,
             cancellationToken: cts.Token
-        );
+        );       
 
         var me = await _botClient.GetMeAsync();
 
@@ -53,6 +58,15 @@ public class BotEngine
         }
 
         Console.WriteLine($"Received a '{messageText}' message in chat {message.Chat.Id}.");
+
+        if(message.Text == "/start")
+        {
+            Message sentMessage = await botClient.SendTextMessageAsync(
+                chatId: update.Message.Chat.Id,
+                text: "I am working. Choose a command.",
+                replyMarkup: _keyboard,
+                cancellationToken: cancellationToken);
+        }
 
         if (message.Text == "!random")
         {
@@ -79,7 +93,8 @@ public class BotEngine
             photo: collectionItem.primaryImage,
             caption: "<b>" + collectionItem.artistDisplayName + "</b>" + " <i>Artwork</i>: " + collectionItem.title,
             parseMode: ParseMode.Html,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken,
+            replyMarkup: _keyboard);
     }
 
     private static async Task<CollectionItem> SearchImageRequestAsync(Message message)
